@@ -275,3 +275,140 @@ func TestRotateBackups_DifferentExtension(t *testing.T) {
 		t.Errorf("expected backup path %s, got %s", expectedBak, bakPath)
 	}
 }
+
+func TestRotateBackups_NoExtension(t *testing.T) {
+	tempDir := t.TempDir()
+
+	sourcePath := filepath.Join(tempDir, "noextension")
+	os.WriteFile(sourcePath, []byte("data"), 0644)
+
+	bakPath, err := RotateBackups(sourcePath, 3)
+	if err != nil {
+		t.Fatalf("failed to rotate backups: %v", err)
+	}
+
+	expectedBak := filepath.Join(tempDir, "noextension.bak")
+	if bakPath != expectedBak {
+		t.Errorf("expected backup path %s, got %s", expectedBak, bakPath)
+	}
+}
+
+func TestRotateBackups_NonExistentFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	sourcePath := filepath.Join(tempDir, "nonexistent.zip")
+
+	_, err := RotateBackups(sourcePath, 3)
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+}
+
+func TestSync_AddFileToWorkspace(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	// Create test zip
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{"file1.txt": "content1"})
+
+	cfg := DefaultConfig()
+	session, err := CreateSession(zipPath, "add-test", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	contentsDir, err := ContentsDir(session.Name)
+	if err != nil {
+		t.Fatalf("failed to get contents dir: %v", err)
+	}
+
+	// Add a new file
+	os.WriteFile(filepath.Join(contentsDir, "newfile.txt"), []byte("new content"), 0644)
+
+	// Sync
+	_, err = Sync(session, false, cfg)
+	if err != nil {
+		t.Fatalf("failed to sync: %v", err)
+	}
+
+	// Verify new file is in the zip
+	extractDir := filepath.Join(tempDir, "verify")
+	os.MkdirAll(extractDir, 0755)
+
+	limits := security.DefaultLimits()
+	_, _, err = Extract(zipPath, extractDir, limits)
+	if err != nil {
+		t.Fatalf("failed to extract: %v", err)
+	}
+
+	newFilePath := filepath.Join(extractDir, "newfile.txt")
+	if _, err := os.Stat(newFilePath); err != nil {
+		t.Error("expected new file to exist in synced zip")
+	}
+}
+
+func TestSync_DeletedFile(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	// Create test zip with multiple files
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{
+		"file1.txt": "content1",
+		"file2.txt": "content2",
+		"file3.txt": "content3",
+	})
+
+	cfg := DefaultConfig()
+	session, err := CreateSession(zipPath, "delete-test", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	contentsDir, err := ContentsDir(session.Name)
+	if err != nil {
+		t.Fatalf("failed to get contents dir: %v", err)
+	}
+
+	// Delete a file
+	os.Remove(filepath.Join(contentsDir, "file2.txt"))
+
+	// Sync
+	_, err = Sync(session, false, cfg)
+	if err != nil {
+		t.Fatalf("failed to sync: %v", err)
+	}
+
+	// Verify file is gone from the zip
+	extractDir := filepath.Join(tempDir, "verify")
+	os.MkdirAll(extractDir, 0755)
+
+	limits := security.DefaultLimits()
+	_, _, err = Extract(zipPath, extractDir, limits)
+	if err != nil {
+		t.Fatalf("failed to extract: %v", err)
+	}
+
+	deletedFilePath := filepath.Join(extractDir, "file2.txt")
+	if _, err := os.Stat(deletedFilePath); !os.IsNotExist(err) {
+		t.Error("expected deleted file to not exist in synced zip")
+	}
+}
+
+func TestRotateBackups_ZeroDepth(t *testing.T) {
+	tempDir := t.TempDir()
+
+	sourcePath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, sourcePath, map[string]string{"file.txt": "content"})
+
+	// Rotate with depth 0 (should still create one backup)
+	bakPath, err := RotateBackups(sourcePath, 0)
+	if err != nil {
+		t.Fatalf("failed to rotate: %v", err)
+	}
+
+	if bakPath == "" {
+		t.Error("expected backup path to be returned")
+	}
+}

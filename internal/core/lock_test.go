@@ -210,3 +210,13 @@ func TestLock_LockFileCreated(t *testing.T) {
 		t.Error("expected lock file to exist")
 	}
 }
+
+func TestLock_InvalidPath(t *testing.T) {
+	// Try to acquire lock in non-existent directory
+	lockPath := "/nonexistent/directory/test.lock"
+
+	_, err := AcquireExclusive(lockPath, 100*time.Millisecond)
+	if err == nil {
+		t.Fatal("expected error for invalid path")
+	}
+}

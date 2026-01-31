@@ -158,3 +158,15 @@ func TestLockPath(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, lockPath)
 	}
 }
+
+func TestDataDir_HomeError(t *testing.T) {
+	// Clear all environment variables
+	os.Unsetenv("ZIPFS_DATA_DIR")
+	os.Unsetenv("XDG_DATA_HOME")
+	os.Unsetenv("HOME")
+
+	// This should still work by falling back to os.UserHomeDir()
+	_, err := DataDir()
+	// May or may not error depending on environment
+	_ = err
+}

@@ -136,6 +136,60 @@ func TestLoadConfig_InvalidEnvVar(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_InvalidMaxSessions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	os.Setenv("ZIPFS_MAX_SESSIONS", "not-a-number")
+	defer os.Unsetenv("ZIPFS_MAX_SESSIONS")
+
+	_, err := LoadConfig(tempDir)
+	if err == nil {
+		t.Fatal("expected error for invalid ZIPFS_MAX_SESSIONS")
+	}
+}
+
+func TestLoadConfig_InvalidMaxFileCount(t *testing.T) {
+	tempDir := t.TempDir()
+
+	os.Setenv("ZIPFS_MAX_FILE_COUNT", "not-a-number")
+	defer os.Unsetenv("ZIPFS_MAX_FILE_COUNT")
+
+	_, err := LoadConfig(tempDir)
+	if err == nil {
+		t.Fatal("expected error for invalid ZIPFS_MAX_FILE_COUNT")
+	}
+}
+
+func TestLoadConfig_InvalidJSON(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Write invalid JSON to config file
+	configPath := filepath.Join(tempDir, "config.json")
+	if err := os.WriteFile(configPath, []byte("{invalid json}"), 0600); err != nil {
+		t.Fatalf("failed to write invalid config: %v", err)
+	}
+
+	_, err := LoadConfig(tempDir)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestLoadConfig_ReadError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create config.json as a directory (will cause read error)
+	configPath := filepath.Join(tempDir, "config.json")
+	if err := os.MkdirAll(configPath, 0755); err != nil {
+		t.Fatalf("failed to create directory: %v", err)
+	}
+
+	_, err := LoadConfig(tempDir)
+	if err == nil {
+		t.Fatal("expected error when config.json is a directory")
+	}
+}
+
 func TestToSecurityLimits(t *testing.T) {
 	cfg := DefaultConfig()
 	limits := cfg.ToSecurityLimits()

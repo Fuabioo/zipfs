@@ -508,3 +508,279 @@ func TestTouchSession(t *testing.T) {
 		t.Error("expected persisted last accessed time to be updated")
 	}
 }
+
+func TestGetSession_EmptyIdentifier(t *testing.T) {
+	setupTestEnvironment(t)
+
+	_, err := GetSession("")
+	if err == nil {
+		t.Fatal("expected error for empty identifier")
+	}
+}
+
+func TestGetSession_ShortPrefix(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{"file.txt": "content"})
+
+	cfg := DefaultConfig()
+	created, err := CreateSession(zipPath, "", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// Try with prefix shorter than 4 characters (should not match)
+	shortPrefix := created.ID[:3]
+	_, err = GetSession(shortPrefix)
+	if err == nil {
+		t.Fatal("expected error for prefix shorter than 4 characters")
+	}
+}
+
+func TestCreateSession_ExtractionFailure(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	// Create a malicious zip
+	zipPath := filepath.Join(tempDir, "malicious.zip")
+	createMaliciousZip(t, zipPath)
+
+	cfg := DefaultConfig()
+	_, err := CreateSession(zipPath, "bad-session", cfg)
+	if err == nil {
+		t.Fatal("expected error when extracting malicious zip")
+	}
+
+	// Verify workspace was cleaned up
+	_, err = GetSession("bad-session")
+	if err == nil {
+		t.Error("expected session to not exist after failed creation")
+	}
+}
+
+func TestDeleteSession_ByUUID(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{"file.txt": "content"})
+
+	cfg := DefaultConfig()
+	session, err := CreateSession(zipPath, "", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// Delete by UUID
+	err = DeleteSession(session.ID)
+	if err != nil {
+		t.Fatalf("failed to delete session by UUID: %v", err)
+	}
+
+	// Verify deleted
+	_, err = GetSession(session.ID)
+	if err == nil {
+		t.Fatal("expected error after deleting session")
+	}
+}
+
+func TestUpdateSession_EmptyName(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{"file.txt": "content"})
+
+	cfg := DefaultConfig()
+	session, err := CreateSession(zipPath, "", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// Update session (should use ID when name is empty)
+	session.State = "modified"
+	err = UpdateSession(session, "")
+	if err != nil {
+		t.Fatalf("failed to update session: %v", err)
+	}
+
+	// Verify update
+	retrieved, err := GetSession(session.ID)
+	if err != nil {
+		t.Fatalf("failed to get session: %v", err)
+	}
+
+	if retrieved.State != "modified" {
+		t.Errorf("expected state 'modified', got %q", retrieved.State)
+	}
+}
+
+func TestListSessions_ErrorReadingWorkspaces(t *testing.T) {
+	setupTestEnvironment(t)
+
+	// Initially should work
+	sessions, err := ListSessions()
+	if err != nil {
+		t.Fatalf("failed to list sessions: %v", err)
+	}
+
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions initially, got %d", len(sessions))
+	}
+}
+
+func TestResolveSession_ByName(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{"file.txt": "content"})
+
+	cfg := DefaultConfig()
+	created, err := CreateSession(zipPath, "named-session", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// Resolve by name
+	resolved, err := ResolveSession("named-session")
+	if err != nil {
+		t.Fatalf("failed to resolve session: %v", err)
+	}
+
+	if resolved.ID != created.ID {
+		t.Errorf("expected ID %s, got %s", created.ID, resolved.ID)
+	}
+}
+
+func TestCreateSession_FileSizeTracking(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	// Create a zip with files of known size
+	files := map[string]string{
+		"file1.txt": "1234567890", // 10 bytes
+		"file2.txt": "abcdefghij", // 10 bytes
+	}
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, files)
+
+	cfg := DefaultConfig()
+	session, err := CreateSession(zipPath, "size-test", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// Verify file count
+	if session.FileCount != 2 {
+		t.Errorf("expected 2 files, got %d", session.FileCount)
+	}
+
+	// Verify size is tracked
+	if session.ExtractedSizeBytes == 0 {
+		t.Error("expected non-zero extracted size")
+	}
+}
+
+func TestCreateSession_SourcePathPersistence(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{"file.txt": "content"})
+
+	cfg := DefaultConfig()
+	session, err := CreateSession(zipPath, "persist-test", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// Verify source path is stored
+	if session.SourcePath == "" {
+		t.Error("expected source path to be set")
+	}
+
+	// Reload and verify persistence
+	retrieved, err := GetSession("persist-test")
+	if err != nil {
+		t.Fatalf("failed to get session: %v", err)
+	}
+
+	if retrieved.SourcePath != session.SourcePath {
+		t.Errorf("expected source path %s, got %s", session.SourcePath, retrieved.SourcePath)
+	}
+}
+
+func TestCreateSession_WithSubdirectories(t *testing.T) {
+	setupTestEnvironment(t)
+	tempDir := t.TempDir()
+
+	// Create zip with subdirectories
+	zipPath := filepath.Join(tempDir, "test.zip")
+	files := map[string]string{
+		"root.txt":            "root content",
+		"dir1/file1.txt":      "dir1 content",
+		"dir1/dir2/file2.txt": "nested content",
+	}
+	createTestZip(t, zipPath, files)
+
+	cfg := DefaultConfig()
+	session, err := CreateSession(zipPath, "subdir-test", cfg)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	if session.FileCount != 3 {
+		t.Errorf("expected 3 files, got %d", session.FileCount)
+	}
+
+	// Verify workspace has nested structure
+	contentsDir, err := ContentsDir("subdir-test")
+	if err != nil {
+		t.Fatalf("failed to get contents dir: %v", err)
+	}
+
+	nestedFile := filepath.Join(contentsDir, "dir1", "dir2", "file2.txt")
+	if _, err := os.Stat(nestedFile); err != nil {
+		t.Errorf("expected nested file to exist: %v", err)
+	}
+}
+
+func TestGetSession_CorruptedMetadata(t *testing.T) {
+	setupTestEnvironment(t)
+
+	// Create workspace manually with corrupted metadata
+	workspacesDir, err := WorkspacesDir()
+	if err != nil {
+		t.Fatalf("failed to get workspaces dir: %v", err)
+	}
+
+	corruptedDir := filepath.Join(workspacesDir, "corrupted")
+	os.MkdirAll(filepath.Join(corruptedDir, "contents"), 0755)
+
+	// Write invalid JSON
+	metadataPath := filepath.Join(corruptedDir, "metadata.json")
+	os.WriteFile(metadataPath, []byte("{invalid json"), 0600)
+
+	// Try to get session - should handle error gracefully
+	_, err = GetSession("corrupted")
+	// Should fail due to corrupted metadata
+	if err == nil {
+		t.Fatal("expected error for corrupted metadata")
+	}
+}
+
+func TestDeleteSession_NonExistent(t *testing.T) {
+	setupTestEnvironment(t)
+
+	err := DeleteSession("nonexistent-session")
+	if err == nil {
+		t.Fatal("expected error when deleting nonexistent session")
+	}
+
+	if !errors.Is(err, errors.CodeSessionNotFound) {
+		t.Errorf("expected SESSION_NOT_FOUND error, got: %v", err)
+	}
+}

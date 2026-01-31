@@ -1,8 +1,11 @@
 package core
 
 import (
+	"archive/zip"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Fuabioo/zipfs/internal/security"
@@ -218,5 +221,155 @@ func TestComputeZipHash_NonExistentFile(t *testing.T) {
 	_, err := ComputeZipHash("/nonexistent/file.zip")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
+	}
+}
+
+func TestExtract_InvalidZipPath(t *testing.T) {
+	tempDir := t.TempDir()
+	destDir := filepath.Join(tempDir, "extracted")
+	os.MkdirAll(destDir, 0755)
+
+	limits := security.DefaultLimits()
+	_, _, err := Extract("/nonexistent/file.zip", destDir, limits)
+	if err == nil {
+		t.Fatal("expected error for nonexistent zip file")
+	}
+}
+
+func TestExtract_InvalidDestDir(t *testing.T) {
+	tempDir := t.TempDir()
+	zipPath := filepath.Join(tempDir, "test.zip")
+	createTestZip(t, zipPath, map[string]string{"file.txt": "content"})
+
+	// Use a file as destination (not a directory)
+	invalidDest := filepath.Join(tempDir, "notadir")
+	os.WriteFile(invalidDest, []byte("file"), 0644)
+
+	limits := security.DefaultLimits()
+	_, _, err := Extract(zipPath, invalidDest, limits)
+	if err == nil {
+		t.Fatal("expected error when dest is not a directory")
+	}
+}
+
+func TestExtract_CorruptedZip(t *testing.T) {
+	tempDir := t.TempDir()
+	zipPath := filepath.Join(tempDir, "corrupted.zip")
+
+	// Write invalid zip data
+	os.WriteFile(zipPath, []byte("not a zip file"), 0644)
+
+	destDir := filepath.Join(tempDir, "extracted")
+	os.MkdirAll(destDir, 0755)
+
+	limits := security.DefaultLimits()
+	_, _, err := Extract(zipPath, destDir, limits)
+	if err == nil {
+		t.Fatal("expected error for corrupted zip")
+	}
+}
+
+func TestExtract_DirectoryEntries(t *testing.T) {
+	tempDir := t.TempDir()
+	zipPath := filepath.Join(tempDir, "test.zip")
+	destDir := filepath.Join(tempDir, "extracted")
+
+	// Create zip with explicit directory entries
+	files := map[string]string{
+		"dir1/":         "",
+		"dir1/file.txt": "content",
+		"dir2/":         "",
+	}
+
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("failed to create zip: %v", err)
+	}
+	defer zipFile.Close()
+
+	w := zip.NewWriter(zipFile)
+	defer w.Close()
+
+	for path, content := range files {
+		header := &zip.FileHeader{
+			Name:   path,
+			Method: zip.Deflate,
+		}
+
+		if strings.HasSuffix(path, "/") {
+			header.SetMode(0755 | os.ModeDir)
+		} else {
+			header.SetMode(0644)
+		}
+
+		f, err := w.CreateHeader(header)
+		if err != nil {
+			t.Fatalf("failed to create entry %s: %v", path, err)
+		}
+
+		if content != "" {
+			if _, err := f.Write([]byte(content)); err != nil {
+				t.Fatalf("failed to write content: %v", err)
+			}
+		}
+	}
+	w.Close()
+	zipFile.Close()
+
+	// Extract
+	os.MkdirAll(destDir, 0755)
+	limits := security.DefaultLimits()
+	_, _, err = Extract(zipPath, destDir, limits)
+	if err != nil {
+		t.Fatalf("failed to extract: %v", err)
+	}
+
+	// Verify directories exist
+	if _, err := os.Stat(filepath.Join(destDir, "dir1")); err != nil {
+		t.Error("expected dir1 to exist")
+	}
+
+	if _, err := os.Stat(filepath.Join(destDir, "dir2")); err != nil {
+		t.Error("expected dir2 to exist")
+	}
+}
+
+func TestComputeZipHash_EmptyZip(t *testing.T) {
+	tempDir := t.TempDir()
+	zipPath := filepath.Join(tempDir, "empty.zip")
+
+	createTestZip(t, zipPath, map[string]string{})
+
+	hash, err := ComputeZipHash(zipPath)
+	if err != nil {
+		t.Fatalf("failed to compute hash: %v", err)
+	}
+
+	if hash == "" {
+		t.Error("expected non-empty hash for empty zip")
+	}
+}
+
+func TestExtract_LargeNumberOfFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	zipPath := filepath.Join(tempDir, "many-files.zip")
+	destDir := filepath.Join(tempDir, "extracted")
+
+	// Create zip with many files
+	files := make(map[string]string)
+	for i := 0; i < 100; i++ {
+		files[fmt.Sprintf("file%d.txt", i)] = fmt.Sprintf("content%d", i)
+	}
+	createTestZip(t, zipPath, files)
+
+	os.MkdirAll(destDir, 0755)
+	limits := security.DefaultLimits()
+	fileCount, _, err := Extract(zipPath, destDir, limits)
+	if err != nil {
+		t.Fatalf("failed to extract: %v", err)
+	}
+
+	if fileCount != 100 {
+		t.Errorf("expected 100 files, got %d", fileCount)
 	}
 }

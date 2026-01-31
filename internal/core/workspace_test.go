@@ -166,3 +166,24 @@ func TestCreateWorkspace_NestedDirectories(t *testing.T) {
 		t.Error("expected workspace to be completely removed")
 	}
 }
+
+func TestCreateWorkspace_AlreadyExists(t *testing.T) {
+	setupTestEnvironment(t)
+
+	session := &Session{
+		ID:   "test-id",
+		Name: "test",
+	}
+
+	// Create workspace
+	err := CreateWorkspace(session, session.Name)
+	if err != nil {
+		t.Fatalf("failed to create workspace: %v", err)
+	}
+
+	// Try to create again - should succeed (idempotent)
+	err = CreateWorkspace(session, session.Name)
+	if err != nil {
+		t.Errorf("expected workspace creation to be idempotent, got error: %v", err)
+	}
+}

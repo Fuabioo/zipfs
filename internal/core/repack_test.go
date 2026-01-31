@@ -242,3 +242,46 @@ func TestRepack_RoundTrip(t *testing.T) {
 		t.Errorf("expected modified content, got %q", string(content))
 	}
 }
+
+func TestRepack_InvalidOutputPath(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory
+	sourceDir := filepath.Join(tempDir, "source")
+	os.MkdirAll(sourceDir, 0755)
+	os.WriteFile(filepath.Join(sourceDir, "file.txt"), []byte("content"), 0644)
+
+	// Try to write to invalid path (directory exists as file)
+	invalidZipPath := filepath.Join(tempDir, "notadir", "output.zip")
+
+	err := Repack(sourceDir, invalidZipPath)
+	if err == nil {
+		t.Fatal("expected error for invalid output path")
+	}
+}
+
+func TestRepack_WithSymlinks(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory with symlink
+	sourceDir := filepath.Join(tempDir, "source")
+	os.MkdirAll(sourceDir, 0755)
+
+	targetFile := filepath.Join(sourceDir, "target.txt")
+	os.WriteFile(targetFile, []byte("target content"), 0644)
+
+	linkFile := filepath.Join(sourceDir, "link.txt")
+	os.Symlink(targetFile, linkFile)
+
+	// Repack
+	zipPath := filepath.Join(tempDir, "output.zip")
+	err := Repack(sourceDir, zipPath)
+	if err != nil {
+		t.Fatalf("failed to repack with symlinks: %v", err)
+	}
+
+	// Verify zip was created
+	if _, err := os.Stat(zipPath); err != nil {
+		t.Error("expected zip file to exist")
+	}
+}
