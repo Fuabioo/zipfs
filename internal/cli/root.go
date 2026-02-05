@@ -35,6 +35,7 @@ It provides both CLI and MCP server interfaces for human and AI agent use.`,
 func Execute() error {
 	err := rootCmd.Execute()
 	if err != nil {
+		printError(err)
 		os.Exit(getExitCode(err))
 	}
 	return nil

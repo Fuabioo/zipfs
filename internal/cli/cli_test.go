@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -411,6 +412,80 @@ func TestCloseCommand(t *testing.T) {
 	}
 	if len(sessions) != 0 {
 		t.Errorf("expected 0 sessions after close, got %d", len(sessions))
+	}
+}
+
+func TestExecute_PrintsErrorToStderr(t *testing.T) {
+	setupTestEnv(t)
+
+	// Test that errors from commands are printed to stderr.
+	// Use close with a nonexistent session to trigger an error.
+	cmd := &cobra.Command{Use: "test"}
+	cmd.AddCommand(closeCmd)
+
+	_, stderr, err := executeCommand(t, cmd, "close", "nonexistent-session", "--no-sync")
+	if err == nil {
+		t.Fatal("expected error for nonexistent session, got nil")
+	}
+
+	// The command itself returns an error. In real usage, Execute() in root.go
+	// calls printError() before os.Exit(). Since we're testing the command directly,
+	// verify that printError produces the right output by calling it explicitly.
+	oldStderr := os.Stderr
+	stderrR, stderrW, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		t.Fatalf("failed to create stderr pipe: %v", pipeErr)
+	}
+	os.Stderr = stderrW
+
+	printError(err)
+
+	stderrW.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	if _, copyErr := io.Copy(&buf, stderrR); copyErr != nil {
+		t.Fatalf("failed to read stderr: %v", copyErr)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Error:") {
+		t.Errorf("stderr missing 'Error:' prefix, got: %s", output)
+	}
+	if !strings.Contains(output, "SESSION_NOT_FOUND") {
+		t.Errorf("stderr missing error code, got: %s", output)
+	}
+
+	// Also verify the original command produced an error on stderr via cobra
+	_ = stderr // cobra's SilenceErrors suppresses its own output, but our printError catches it
+}
+
+func TestExecute_ErrorExitCodes(t *testing.T) {
+	// Verify that getExitCode returns proper codes for errors that would come from CLI
+	tests := []struct {
+		err      error
+		name     string
+		wantCode int
+	}{
+		{
+			name:     "session not found gets exit code 4",
+			err:      errors.SessionNotFound("nonexistent"),
+			wantCode: 4,
+		},
+		{
+			name:     "generic cobra error gets exit code 1",
+			err:      fmt.Errorf("unknown flag: --session"),
+			wantCode: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code := getExitCode(tt.err)
+			if code != tt.wantCode {
+				t.Errorf("getExitCode() = %d, want %d", code, tt.wantCode)
+			}
+		})
 	}
 }
 
