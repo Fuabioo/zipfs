@@ -16,6 +16,10 @@ go.work.sum
 # IDE
 .idea/
 .vscode/
+
+# Claude Code
+.claude/
+.workflow/
 *.swp
 *.swo
 *~
