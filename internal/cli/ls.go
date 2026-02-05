@@ -103,11 +103,9 @@ func runLs(cmd *cobra.Command, args []string) error {
 		for _, entry := range entries {
 			modTime := time.Unix(entry.ModifiedAt, 0).Format("2006-01-02 15:04:05")
 			sizeStr := formatBytes(entry.SizeBytes)
-			typeStr := entry.Type
+			typeStr := "FILE"
 			if entry.Type == "dir" {
 				typeStr = "DIR"
-			} else {
-				typeStr = "FILE"
 			}
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", typeStr, sizeStr, modTime, entry.Name)
 		}

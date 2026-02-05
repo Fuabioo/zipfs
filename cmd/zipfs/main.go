@@ -5,5 +5,8 @@ import (
 )
 
 func main() {
-	cli.Execute()
+	if err := cli.Execute(); err != nil {
+		// Execute handles printing and os.Exit internally
+		_ = err
+	}
 }

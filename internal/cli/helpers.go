@@ -8,28 +8,8 @@ import (
 
 	"github.com/Fuabioo/zipfs/internal/core"
 	"github.com/Fuabioo/zipfs/internal/errors"
-	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
-
-// resolveSession resolves a session identifier from command arguments or auto-resolves.
-// It handles the session resolution logic per ADR-003.
-func resolveSession(cmd *cobra.Command, args []string, argIndex int) (*core.Session, string, error) {
-	var identifier string
-
-	// Check if we have an argument at the specified index
-	if argIndex < len(args) {
-		identifier = args[argIndex]
-	}
-
-	// Try to resolve the session
-	session, err := core.ResolveSession(identifier)
-	if err != nil {
-		return nil, "", err
-	}
-
-	return session, identifier, nil
-}
 
 // parseColonSyntax parses "session:path" syntax into session and path components.
 // Returns empty session string if no colon is found.

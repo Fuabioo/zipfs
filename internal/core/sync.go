@@ -36,7 +36,7 @@ func Sync(session *Session, force bool, cfg *Config) (*SyncResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to acquire lock: %w", err)
 	}
-	defer lock.Release()
+	defer func() { _ = lock.Release() }()
 
 	// 2. Verify session state is "open"
 	if session.State != "open" {
@@ -54,7 +54,7 @@ func Sync(session *Session, force bool, cfg *Config) (*SyncResult, error) {
 	defer func() {
 		if restoreState {
 			session.State = "open"
-			UpdateSession(session, dirName)
+			_ = UpdateSession(session, dirName)
 		}
 	}()
 

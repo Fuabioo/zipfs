@@ -108,7 +108,7 @@ func CreateSession(sourcePath, name string, cfg *Config) (*Session, error) {
 	// Compute hash of source zip
 	hash, err := ComputeZipHash(absSourcePath)
 	if err != nil {
-		RemoveWorkspace(session, dirName)
+		_ = RemoveWorkspace(session, dirName)
 		return nil, fmt.Errorf("failed to compute zip hash: %w", err)
 	}
 	session.ZipHashSHA256 = hash
@@ -116,25 +116,25 @@ func CreateSession(sourcePath, name string, cfg *Config) (*Session, error) {
 	// Copy source zip to workspace
 	originalZipPath, err := OriginalZipPath(dirName)
 	if err != nil {
-		RemoveWorkspace(session, dirName)
+		_ = RemoveWorkspace(session, dirName)
 		return nil, fmt.Errorf("failed to get original zip path: %w", err)
 	}
 
 	if err := copyFile(absSourcePath, originalZipPath); err != nil {
-		RemoveWorkspace(session, dirName)
+		_ = RemoveWorkspace(session, dirName)
 		return nil, fmt.Errorf("failed to copy source zip: %w", err)
 	}
 
 	// Extract contents
 	contentsDir, err := ContentsDir(dirName)
 	if err != nil {
-		RemoveWorkspace(session, dirName)
+		_ = RemoveWorkspace(session, dirName)
 		return nil, fmt.Errorf("failed to get contents directory: %w", err)
 	}
 
 	fileCount, totalSize, err := Extract(absSourcePath, contentsDir, cfg.ToSecurityLimits())
 	if err != nil {
-		RemoveWorkspace(session, dirName)
+		_ = RemoveWorkspace(session, dirName)
 		return nil, fmt.Errorf("failed to extract zip: %w", err)
 	}
 
@@ -143,7 +143,7 @@ func CreateSession(sourcePath, name string, cfg *Config) (*Session, error) {
 
 	// Write metadata
 	if err := UpdateSession(session, dirName); err != nil {
-		RemoveWorkspace(session, dirName)
+		_ = RemoveWorkspace(session, dirName)
 		return nil, fmt.Errorf("failed to write metadata: %w", err)
 	}
 

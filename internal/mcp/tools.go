@@ -133,10 +133,8 @@ func (s *Server) handleLs(ctx context.Context, request mcp.CallToolRequest) (*mc
 		"entries": responseEntries,
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
@@ -180,10 +178,8 @@ func (s *Server) handleTree(ctx context.Context, request mcp.CallToolRequest) (*
 		"dir_count":  dirCount,
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
@@ -248,10 +244,8 @@ func (s *Server) handleRead(ctx context.Context, request mcp.CallToolRequest) (*
 		"encoding":   encoding,
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
@@ -309,10 +303,8 @@ func (s *Server) handleWrite(ctx context.Context, request mcp.CallToolRequest) (
 		"size_bytes": len(data),
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
@@ -353,10 +345,8 @@ func (s *Server) handleDelete(ctx context.Context, request mcp.CallToolRequest) 
 		"path":    path,
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
@@ -416,10 +406,8 @@ func (s *Server) handleGrep(ctx context.Context, request mcp.CallToolRequest) (*
 		"truncated":     totalMatches > len(matches),
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
@@ -449,10 +437,8 @@ func (s *Server) handlePath(ctx context.Context, request mcp.CallToolRequest) (*
 		"path": contentsDir,
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
@@ -529,10 +515,8 @@ func (s *Server) handleStatus(ctx context.Context, request mcp.CallToolRequest) 
 		"unchanged_count": status.UnchangedCount,
 	}
 
-	// Touch session
-	if err := core.TouchSession(session); err != nil {
-		// Non-fatal, just log
-	}
+	// Touch session (non-fatal)
+	_ = core.TouchSession(session)
 
 	return jsonResult(response), nil
 }
