@@ -1,0 +1,126 @@
+version: 2
+
+project_name: zipfs
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+  make_latest: true
+  name_template: "v{{ .Version }}"
+  header: |
+    ## zipfs {{ .Version }}
+
+    **Ephemeral workspace manager for zip files** - CLI and MCP server.
+  footer: |
+    ## Installation
+
+    **Homebrew:**
+    ```bash
+    brew tap Fuabioo/tap
+    brew install zipfs
+    ```
+
+    **Go:**
+    ```bash
+    go install github.com/Fuabioo/zipfs/cmd/zipfs@latest
+    ```
+
+    **Claude Code MCP:**
+    ```bash
+    claude mcp add --scope user --transport stdio zipfs zipfs mcp
+    ```
+    ```bash
+    claude mcp remove zipfs
+    ```
+
+    ---
+    **Full Changelog**: https://github.com/Fuabioo/zipfs/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: zipfs
+    main: ./cmd/zipfs
+    binary: zipfs
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/Fuabioo/zipfs/internal/cli.Version={{.Version}}
+      - -X github.com/Fuabioo/zipfs/internal/cli.Commit={{.ShortCommit}}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - README.md
+      - LICENSE*
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+brews:
+  - repository:
+      owner: Fuabioo
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/Fuabioo/zipfs"
+    description: "zipfs - Ephemeral workspace manager for zip files. CLI and MCP server."
+    license: "MIT"
+    test: |
+      system "#{bin}/zipfs --version"
+    install: |
+      bin.install "zipfs"
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "skip ci"
+      - "skip-ci"
+      - "^docs:"
+      - "^test:"
+  groups:
+    - title: "Features"
+      regexp: "(?i).*(feat|add|implement|create|initial|new).*"
+      order: 0
+    - title: "Bug fixes"
+      regexp: "(?i).*(fix|resolve|correct|patch|bug).*"
+      order: 1
+    - title: "Documentation"
+      regexp: "(?i).*(docs|documentation|readme).*"
+      order: 2
+    - title: "Improvements"
+      regexp: "(?i).*(improve|enhance|optimize|update|upgrade).*"
+      order: 3
+    - title: "Cleanup"
+      regexp: "(?i).*(cleanup|clean|remove|delete|refactor).*"
+      order: 4
+    - title: "Others"
+      order: 999
