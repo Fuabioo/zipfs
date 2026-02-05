@@ -1,0 +1,41 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - unused
+    - misspell
+    - gofmt
+    - goimports
+    - gosec
+    - bodyclose
+    - noctx
+    - copyloopvar
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+  govet:
+    enable-all: true
+    disable:
+      - shadow # too noisy for idiomatic Go err re-declarations
+  gosec:
+    excludes:
+      - G204 # subprocess launching (needed for tests)
+      - G305 # zip file traversal - handled by internal/security package (ADR-008)
+      - G110 # decompression bomb - handled by internal/security package (ADR-008)
+      - G115 # int64->uint64 conversion - sizes are always positive
+      - G306 # file permissions 0644 - intentional for user-readable workspace files
+
+issues:
+  exclude-dirs:
+    - testdata
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck

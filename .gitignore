@@ -1,5 +1,5 @@
-# Binary
-zipfs
+# Binary (the compiled output, not the source directory)
+/zipfs
 dist/
 
 # Go
