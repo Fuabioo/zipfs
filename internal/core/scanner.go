@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Fuabioo/zipfs/internal/errors"
 	"github.com/Fuabioo/zipfs/internal/security"
@@ -466,10 +467,7 @@ func grepFile(path, relPath string, re *regexp.Regexp, maxMatches int) ([]GrepMa
 
 // Status compares the current workspace contents with the original zip.
 func Status(session *Session) (*StatusResult, error) {
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 
 	contentsDir, err := ContentsDir(dirName)
 	if err != nil {
@@ -538,9 +536,9 @@ func Status(session *Session) (*StatusResult, error) {
 				continue
 			}
 
-			// Compare size and modification time
+			// Compare size and modification time (truncate to second for filesystem compatibility)
 			if uint64(currentInfo.Size()) != originalFile.UncompressedSize64 ||
-				!currentInfo.ModTime().Equal(originalFile.Modified) {
+				!currentInfo.ModTime().Truncate(time.Second).Equal(originalFile.Modified.Truncate(time.Second)) {
 				result.Modified = append(result.Modified, currentPath)
 			} else {
 				result.UnchangedCount++

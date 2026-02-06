@@ -29,10 +29,7 @@ func runSessions(cmd *cobra.Command, args []string) error {
 		// Build JSON output matching MCP format
 		output := make([]map[string]interface{}, 0, len(sessions))
 		for _, s := range sessions {
-			dirName := s.Name
-			if dirName == "" {
-				dirName = s.ID
-			}
+			dirName := s.DirName()
 			workspacePath, err := core.ContentsDir(dirName)
 			if err != nil {
 				continue

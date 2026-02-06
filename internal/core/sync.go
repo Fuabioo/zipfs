@@ -11,6 +11,7 @@ import (
 
 // SyncResult contains the results of a sync operation.
 type SyncResult struct {
+	StatusError     error
 	BackupPath      string
 	FilesModified   int
 	FilesAdded      int
@@ -21,10 +22,7 @@ type SyncResult struct {
 // Sync synchronizes the workspace contents back to the source zip file.
 // This implements the sync workflow from ADR-004.
 func Sync(session *Session, force bool, cfg *Config) (*SyncResult, error) {
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 
 	// 1. Acquire exclusive lock
 	lockPath, err := LockPath(dirName)
@@ -101,6 +99,9 @@ func Sync(session *Session, force bool, cfg *Config) (*SyncResult, error) {
 		}
 	}()
 
+	// Capture status before repack to compute file changes
+	statusResult, statusErr := Status(session)
+
 	// Repack the contents
 	if err := Repack(contentsDir, tempPath); err != nil {
 		return nil, errors.SyncFailed(err)
@@ -142,11 +143,21 @@ func Sync(session *Session, force bool, cfg *Config) (*SyncResult, error) {
 		return nil, fmt.Errorf("failed to update session metadata: %w", err)
 	}
 
-	// TODO: Compute actual file changes for more accurate result
-	return &SyncResult{
+	result := &SyncResult{
 		BackupPath:      backupPath,
 		NewZipSizeBytes: uint64(tempInfo.Size()),
-	}, nil
+	}
+
+	// Populate change counts if status was computed successfully
+	if statusErr != nil {
+		result.StatusError = fmt.Errorf("change tracking unavailable: %w", statusErr)
+	} else {
+		result.FilesModified = len(statusResult.Modified)
+		result.FilesAdded = len(statusResult.Added)
+		result.FilesDeleted = len(statusResult.Deleted)
+	}
+
+	return result, nil
 }
 
 // RotateBackups rotates backup files for a source zip.

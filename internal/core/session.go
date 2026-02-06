@@ -29,6 +29,15 @@ type Session struct {
 	FileCount          int        `json:"file_count"`
 }
 
+// DirName returns the directory name used for this session's workspace.
+// It prefers the human-readable Name, falling back to the ID.
+func (s *Session) DirName() string {
+	if s.Name != "" {
+		return s.Name
+	}
+	return s.ID
+}
+
 // CreateSession creates a new session for the given zip file.
 // This implements the "open" workflow from ADR-003.
 func CreateSession(sourcePath, name string, cfg *Config) (*Session, error) {
@@ -85,12 +94,6 @@ func CreateSession(sourcePath, name string, cfg *Config) (*Session, error) {
 	// Generate session ID
 	sessionID := uuid.New().String()
 
-	// Use name as directory name if provided, otherwise use UUID
-	dirName := sessionID
-	if name != "" {
-		dirName = name
-	}
-
 	// Create workspace directory structure
 	session := &Session{
 		ID:             sessionID,
@@ -100,6 +103,8 @@ func CreateSession(sourcePath, name string, cfg *Config) (*Session, error) {
 		LastAccessedAt: time.Now(),
 		State:          "open",
 	}
+
+	dirName := session.DirName()
 
 	if err := CreateWorkspace(session, dirName); err != nil {
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
@@ -282,10 +287,7 @@ func DeleteSession(id string) error {
 		return fmt.Errorf("failed to get session: %w", err)
 	}
 
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 
 	return RemoveWorkspace(session, dirName)
 }
@@ -293,10 +295,7 @@ func DeleteSession(id string) error {
 // UpdateSession writes the session metadata to disk.
 func UpdateSession(session *Session, dirName string) error {
 	if dirName == "" {
-		dirName = session.ID
-		if session.Name != "" {
-			dirName = session.Name
-		}
+		dirName = session.DirName()
 	}
 
 	metadataPath, err := MetadataPath(dirName)
@@ -320,10 +319,7 @@ func UpdateSession(session *Session, dirName string) error {
 func TouchSession(session *Session) error {
 	session.LastAccessedAt = time.Now()
 
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 
 	return UpdateSession(session, dirName)
 }

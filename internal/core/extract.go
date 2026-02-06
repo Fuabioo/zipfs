@@ -83,12 +83,24 @@ func extractFile(f *zip.File, destDir string, fileCount *int, totalSize *uint64)
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outFile.Close()
 
 	// Copy the data and track size
 	written, err := io.Copy(outFile, rc)
 	if err != nil {
+		outFile.Close()
 		return fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// Close the file before setting modification time
+	if err := outFile.Close(); err != nil {
+		return fmt.Errorf("failed to close output file: %w", err)
+	}
+
+	// Preserve modification time from the zip entry (guard against zero time)
+	if !f.Modified.IsZero() {
+		if err := os.Chtimes(destPath, f.Modified, f.Modified); err != nil {
+			return fmt.Errorf("failed to set modification time: %w", err)
+		}
 	}
 
 	*fileCount++

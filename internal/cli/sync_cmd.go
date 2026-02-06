@@ -110,6 +110,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 			"files_deleted":      result.FilesDeleted,
 			"new_zip_size_bytes": result.NewZipSizeBytes,
 		}
+		if result.StatusError != nil {
+			output["status_error"] = result.StatusError.Error()
+		}
 		return outputJSON(output)
 	}
 
@@ -118,6 +121,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Synced to: %s\n", session.SourcePath)
 		fmt.Printf("Backup: %s\n", result.BackupPath)
 		fmt.Printf("New size: %s\n", formatBytes(result.NewZipSizeBytes))
+		if result.StatusError != nil {
+			fmt.Printf("Warning: %s\n", result.StatusError.Error())
+		}
 	}
 
 	return nil

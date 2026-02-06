@@ -29,10 +29,7 @@ func (s *Server) handleOpen(ctx context.Context, request mcp.CallToolRequest) (*
 	}
 
 	// Get workspace path
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -103,10 +100,7 @@ func (s *Server) handleLs(ctx context.Context, request mcp.CallToolRequest) (*mc
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -157,10 +151,7 @@ func (s *Server) handleTree(ctx context.Context, request mcp.CallToolRequest) (*
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -203,10 +194,7 @@ func (s *Server) handleRead(ctx context.Context, request mcp.CallToolRequest) (*
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -272,10 +260,7 @@ func (s *Server) handleWrite(ctx context.Context, request mcp.CallToolRequest) (
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -326,10 +311,7 @@ func (s *Server) handleDelete(ctx context.Context, request mcp.CallToolRequest) 
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -375,10 +357,7 @@ func (s *Server) handleGrep(ctx context.Context, request mcp.CallToolRequest) (*
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -424,10 +403,7 @@ func (s *Server) handlePath(ctx context.Context, request mcp.CallToolRequest) (*
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return errorResult("INTERNAL_ERROR", err.Error()), nil
@@ -486,6 +462,10 @@ func (s *Server) handleSync(ctx context.Context, request mcp.CallToolRequest) (*
 		"files_modified": result.FilesModified,
 		"files_added":    result.FilesAdded,
 		"files_deleted":  result.FilesDeleted,
+	}
+
+	if result.StatusError != nil {
+		response["status_error"] = result.StatusError.Error()
 	}
 
 	return jsonResult(response), nil

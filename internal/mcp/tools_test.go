@@ -420,7 +420,7 @@ func TestHandleWrite_Success(t *testing.T) {
 	}
 
 	// Verify file was written
-	dirName := session.ID
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		t.Fatalf("failed to get contents dir: %v", err)
@@ -475,7 +475,7 @@ func TestHandleDelete_Success(t *testing.T) {
 	}
 
 	// Verify file was deleted
-	dirName := session.ID
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		t.Fatalf("failed to get contents dir: %v", err)
@@ -589,7 +589,7 @@ func TestHandleStatus_Success(t *testing.T) {
 	}
 
 	// Modify workspace
-	dirName := session.ID
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		t.Fatalf("failed to get contents dir: %v", err)

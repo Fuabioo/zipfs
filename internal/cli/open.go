@@ -49,10 +49,7 @@ func runOpen(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get workspace path
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	workspacePath, err := core.ContentsDir(dirName)
 	if err != nil {
 		return err

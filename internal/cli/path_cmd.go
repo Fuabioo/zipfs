@@ -32,10 +32,7 @@ func runPath(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get contents directory
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		return err

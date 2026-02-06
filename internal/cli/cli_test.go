@@ -648,10 +648,7 @@ func TestStatusCommand(t *testing.T) {
 	}
 
 	// Modify a file
-	dirName := session.Name
-	if dirName == "" {
-		dirName = session.ID
-	}
+	dirName := session.DirName()
 	contentsDir, err := core.ContentsDir(dirName)
 	if err != nil {
 		t.Fatalf("failed to get contents dir: %v", err)

@@ -49,6 +49,17 @@ func TestSync_Basic(t *testing.T) {
 		t.Error("expected backup path to be set")
 	}
 
+	// Verify change counts
+	if result.FilesModified != 1 {
+		t.Errorf("expected 1 modified file, got %d", result.FilesModified)
+	}
+	if result.FilesAdded != 0 {
+		t.Errorf("expected 0 added files, got %d", result.FilesAdded)
+	}
+	if result.FilesDeleted != 0 {
+		t.Errorf("expected 0 deleted files, got %d", result.FilesDeleted)
+	}
+
 	// Verify backup exists
 	if _, err := os.Stat(result.BackupPath); err != nil {
 		t.Errorf("backup file doesn't exist: %v", err)
@@ -155,8 +166,6 @@ func TestSync_UpdatesMetadata(t *testing.T) {
 		t.Error("expected LastSyncedAt to be nil initially")
 	}
 
-	originalHash := session.ZipHashSHA256
-
 	// Sync
 	_, err = Sync(session, false, cfg)
 	if err != nil {
@@ -186,8 +195,6 @@ func TestSync_UpdatesMetadata(t *testing.T) {
 	if retrieved.LastSyncedAt == nil {
 		t.Error("expected persisted LastSyncedAt to be set")
 	}
-
-	_ = originalHash
 }
 
 func TestRotateBackups_Basic(t *testing.T) {
@@ -327,9 +334,20 @@ func TestSync_AddFileToWorkspace(t *testing.T) {
 	os.WriteFile(filepath.Join(contentsDir, "newfile.txt"), []byte("new content"), 0644)
 
 	// Sync
-	_, err = Sync(session, false, cfg)
+	result, err := Sync(session, false, cfg)
 	if err != nil {
 		t.Fatalf("failed to sync: %v", err)
+	}
+
+	// Verify change counts
+	if result.FilesAdded != 1 {
+		t.Errorf("expected 1 added file, got %d", result.FilesAdded)
+	}
+	if result.FilesModified != 0 {
+		t.Errorf("expected 0 modified files, got %d", result.FilesModified)
+	}
+	if result.FilesDeleted != 0 {
+		t.Errorf("expected 0 deleted files, got %d", result.FilesDeleted)
 	}
 
 	// Verify new file is in the zip
@@ -375,9 +393,20 @@ func TestSync_DeletedFile(t *testing.T) {
 	os.Remove(filepath.Join(contentsDir, "file2.txt"))
 
 	// Sync
-	_, err = Sync(session, false, cfg)
+	result, err := Sync(session, false, cfg)
 	if err != nil {
 		t.Fatalf("failed to sync: %v", err)
+	}
+
+	// Verify change counts
+	if result.FilesDeleted != 1 {
+		t.Errorf("expected 1 deleted file, got %d", result.FilesDeleted)
+	}
+	if result.FilesModified != 0 {
+		t.Errorf("expected 0 modified files, got %d", result.FilesModified)
+	}
+	if result.FilesAdded != 0 {
+		t.Errorf("expected 0 added files, got %d", result.FilesAdded)
 	}
 
 	// Verify file is gone from the zip
@@ -460,6 +489,17 @@ func TestSync_FullRoundTrip(t *testing.T) {
 	}
 	if result.BackupPath == "" {
 		t.Error("expected backup path to be set after sync")
+	}
+
+	// Verify change counts (both files were modified)
+	if result.FilesModified != 2 {
+		t.Errorf("expected 2 modified files, got %d", result.FilesModified)
+	}
+	if result.FilesAdded != 0 {
+		t.Errorf("expected 0 added files, got %d", result.FilesAdded)
+	}
+	if result.FilesDeleted != 0 {
+		t.Errorf("expected 0 deleted files, got %d", result.FilesDeleted)
 	}
 
 	// Phase 4: Close session (delete workspace)
